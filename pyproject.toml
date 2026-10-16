@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jig-bench"
+version = "0.2.0"
+description = "The benchmark that decides Jig's rules: do AI models build correct software more reliably with Jig?"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["jig-lang"]
+
+[project.optional-dependencies]
+xai = ["scikit-learn>=1.5", "shap>=0.46", "lime>=0.2"]
+dev = ["pytest>=8"]
+
+[project.urls]
+Language = "https://github.com/IonutzHerbil/jig-lang"
+
+[tool.setuptools]
+packages = ["bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
