@@ -34,9 +34,10 @@ apps they extend live in `bench/projects/`.
 
 ## Engineering scenarios (`agent.py`)
 
-An agent works in a real repository (`bench/repos/billing`) with LIST, READ, SEARCH, WRITE, EDIT, CHECK and DONE on
-a step budget, and is graded on hidden tests plus the repository's own suite. `python` checks with the tests;
-`jig` adds `jig check --py`.
+An agent works in a real repository with LIST, READ, SEARCH, WRITE, EDIT, CHECK and DONE on a step budget, and is
+graded on hidden tests plus the repository's own suite. `python` works in `bench/repos/billing/python` and checks
+with the tests; `jig` works in `bench/repos/billing/jig`, the same code ported to Jig, and checks with `jig check`
+and then the tests against the compiled program. Tests confirm each scenario's reference fix delivers in both.
 
 ```bash
 python -m bench.agent --model gemini-flash-lite-latest --samples 2

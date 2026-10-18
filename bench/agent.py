@@ -7,8 +7,12 @@ The agent starts with the task and the file list only. Each reply is one action:
 LIST <dir>, READ <path>, SEARCH <regex>, WRITE <path> + full file, EDIT <path> + search/replace blocks,
 CHECK, DONE. Conditions differ only in what CHECK runs:
 
-    python   the repository's test suite (pytest)
-    jig      `jig check --py` on the repository (closed world, library manifests, arguments, types), then the tests
+    python   the repository's test suite (pytest), in repos/<repo>/python
+    jig      `jig check` on the repository (closed world, library manifests, arguments, types), then the tests
+             against the compiled program, in repos/<repo>/jig: the same code ported to Jig
+
+A task's start/ and reference/ overlays are written once, in Python; for Jig their source modules become .jig files
+(the port is a `module` line). Hidden tests are the same for both and run against the code the condition ships.
 
 DONE runs the checks once more; if they fail the agent is told and continues, within its step budget.
 Grading runs the task's hidden tests and the repository's own tests (regressions) on the final code.
@@ -28,7 +32,9 @@ import time
 from pathlib import Path
 
 from jig.cli import check_project, feedback_for_model
+from jig.formatter import format_source
 from jig.llm import Gemini, Reply
+from jig.transpiler import build
 
 ROOT = Path(__file__).resolve().parent
 REPOS = ROOT / "repos"
@@ -44,12 +50,12 @@ TOOLCHAIN = {
            "library APIs from lib/*.manifest, types) and then the repository's test suite (pytest)",
 }
 
-SYSTEM = """You are a software engineer working in a Python repository. You see it only through actions.
+SYSTEM = """You are a software engineer working in a {language} repository. You see it only through actions.
 Reply with exactly ONE action per message, as the first line, in one of these forms:
 
 LIST <directory>                 e.g. LIST billing
-READ <path>                      e.g. READ billing/models.py
-SEARCH <text or regex>           e.g. SEARCH def charge   (every .py file; shows path:line: text)
+READ <path>                      e.g. READ billing/models{ext}
+SEARCH <text or regex>           e.g. SEARCH def charge   (every source file; shows path:line: text)
 WRITE <path>
 ```python
 <the complete new content of the file>
@@ -71,6 +77,25 @@ them; keep existing behavior unless the task changes it. You have {budget} actio
 
 # ---------------------------------------------------------------- the workspace
 
+SOURCE = (".py", ".jig", ".manifest")
+
+
+def for_condition(rel: Path, text: str, cond: str) -> tuple[Path, str]:
+    """A Python overlay file as the condition's repository has it: for Jig, a source module becomes a .jig file."""
+    if cond != "jig" or rel.suffix != ".py" or rel.parts[0] in ("lib", "tests"):
+        return rel, text
+    module = ".".join(rel.with_suffix("").parts)
+    return rel.with_suffix(".jig"), format_source(f"module {module}\n\n{text}")
+
+
+def overlay(src: Path, work: Path, cond: str) -> None:
+    for f in sorted(src.rglob("*")):
+        if f.is_file():
+            rel, text = for_condition(f.relative_to(src), f.read_text(encoding="utf-8"), cond)
+            (work / rel).parent.mkdir(parents=True, exist_ok=True)
+            (work / rel).write_text(text, encoding="utf-8")
+
+
 
 def tree(root: Path) -> str:
     out = []
@@ -87,18 +112,25 @@ def safe_path(root: Path, rel: str) -> Path | None:
     return p if root.resolve() in p.parents or p == root.resolve() else None
 
 
-def run_tests(root: Path, target: str = "tests", extra: list[str] | None = None) -> tuple[int, int, str]:
-    """(passed, failed incl. errors, output) of pytest on target."""
-    try:
-        p = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header", "-p", "no:cacheprovider", target,
-             *(extra or [])],
-            cwd=root, capture_output=True, text=True, timeout=180,
-            env={**os.environ, "PYTHONPATH": str(root), "PYTHONHASHSEED": "0"},
-        )
-        out = p.stdout + p.stderr
-    except subprocess.TimeoutExpired:
-        return 0, 1, "the test run timed out after 180s"
+def run_tests(root: Path, cond: str, target: str = "tests", extra: list[str] | None = None) -> tuple[int, int, str]:
+    """(passed, failed incl. errors, output) of pytest on target, against the code the condition ships: the files
+    themselves for Python, the compiled program for Jig."""
+    with tempfile.TemporaryDirectory() as built:
+        code = str(root)
+        if cond == "jig":
+            project, _ = check_project([str(root)], run_ex=False)
+            build(project, Path(built), root=root)
+            code = built
+        try:
+            p = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header", "-p", "no:cacheprovider", target,
+                 *(extra or [])],
+                cwd=root, capture_output=True, text=True, timeout=180,
+                env={**os.environ, "PYTHONPATH": code, "PYTHONHASHSEED": "0"},
+            )
+            out = p.stdout + p.stderr
+        except subprocess.TimeoutExpired:
+            return 0, 1, "the test run timed out after 180s"
     count = lambda word: sum(int(n) for n in re.findall(rf"(\d+) {word}", out.splitlines()[-1] if out.strip() else ""))  # noqa: E731
     return count("passed"), count("failed") + count("error"), out
 
@@ -107,13 +139,13 @@ def run_checks(root: Path, cond: str) -> tuple[bool, str, list[str]]:
     """The condition's toolchain: (ok, feedback text, error codes)."""
     parts, codes, ok = [], [], True
     if cond == "jig":
-        project, summary = check_project([str(root)], run_ex=False, py=True)
+        project, summary = check_project([str(root)], run_ex=False)
         if not summary["ok"]:
             ok = False
             codes += [d["code"] for d in summary["diagnostics"] if d["severity"] == "error"]
             text = feedback_for_model(project).replace(str(root) + os.sep, "")
             parts.append("Jig check found problems:\n\n" + text[:5000])
-    passed, failed, out = run_tests(root)
+    passed, failed, out = run_tests(root, cond)
     if failed:
         ok = False
         codes.append("tests")
@@ -166,8 +198,8 @@ def act(root: Path, reply: str, cond: str, log: dict) -> tuple[str, bool]:
             return "SEARCH needs the text to look for, e.g. SEARCH def charge", False
         rx = search_pattern(arg)
         hits = []
-        for f in sorted(root.rglob("*.py")):
-            if SKIP & set(f.relative_to(root).parts):
+        for f in sorted(root.rglob("*")):
+            if f.suffix not in SOURCE or not f.is_file() or SKIP & set(f.relative_to(root).parts):
                 continue
             for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
                 if rx.search(line):
@@ -177,7 +209,7 @@ def act(root: Path, reply: str, cond: str, log: dict) -> tuple[str, bool]:
         return "\n".join(hits[:40]) + (f"\n... {len(hits) - 40} more" if len(hits) > 40 else ""), False
     if action in ("WRITE", "EDIT"):
         p = safe_path(root, arg)
-        if not p or p.suffix not in (".py", ".manifest", ".md", ".txt"):
+        if not p or p.suffix not in (*SOURCE, ".md", ".txt"):
             return f"Cannot write {arg}: only source files inside the repository", False
         blocks = BLOCK_RE.findall(after)
         if not blocks:
@@ -212,11 +244,11 @@ def act(root: Path, reply: str, cond: str, log: dict) -> tuple[str, bool]:
 # ---------------------------------------------------------------- one sample
 
 
-def prepare(task_dir: Path, work: Path) -> dict:
+def prepare(task_dir: Path, work: Path, cond: str) -> dict:
     task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
-    shutil.copytree(REPOS / task["repo"], work, ignore=shutil.ignore_patterns(*SKIP))
+    shutil.copytree(REPOS / task["repo"] / cond, work, ignore=shutil.ignore_patterns(*SKIP))
     if (task_dir / "start").is_dir():
-        shutil.copytree(task_dir / "start", work, dirs_exist_ok=True)
+        overlay(task_dir / "start", work, cond)
     return task
 
 
@@ -227,21 +259,22 @@ def visible(work: Path, cond: str) -> None:
             m.unlink()
 
 
-def grade(task_dir: Path, work: Path) -> dict:
+def grade(task_dir: Path, work: Path, cond: str) -> dict:
     shutil.copy(task_dir / "hidden_test.py", work / "tests" / "test_zz_hidden.py")
-    hp, hf, _ = run_tests(work, "tests/test_zz_hidden.py")
-    rp, rf, _ = run_tests(work, "tests", ["--deselect", "tests/test_zz_hidden.py", "--ignore", "tests/test_zz_hidden.py"])
+    hp, hf, _ = run_tests(work, cond, "tests/test_zz_hidden.py")
+    rp, rf, _ = run_tests(work, cond, "tests", ["--deselect", "tests/test_zz_hidden.py", "--ignore", "tests/test_zz_hidden.py"])
     return {"hidden_passed": hp, "hidden_failed": hf, "regression_passed": rp, "regression_failed": rf}
 
 
 def run_sample(model, task_dir: Path, cond: str, budget: int) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp) / "repo"
-        task = prepare(task_dir, work)
+        task = prepare(task_dir, work, cond)
         visible(work, cond)
         log = {"actions": [], "read": set(), "written": set(), "checks": [], "refused_done": 0,
                "tokens": 0, "transcript": []}
-        system = SYSTEM.format(toolchain=TOOLCHAIN[cond], budget=budget)
+        system = SYSTEM.format(toolchain=TOOLCHAIN[cond], budget=budget, language="Jig" if cond == "jig" else "Python",
+                               ext=".jig" if cond == "jig" else ".py")
         turns = [f"Task: {task['request']}\n\nFiles in the repository:\n{tree(work)}"]
         finished = False
         for _ in range(budget):
@@ -253,7 +286,7 @@ def run_sample(model, task_dir: Path, cond: str, budget: int) -> dict:
                 break
             turns += [reply.text, seen]
         ok, _, final_codes = run_checks(work, cond)
-        result = grade(task_dir, work)
+        result = grade(task_dir, work, cond)
         diff = {f: (work / f).read_text(encoding="utf-8") for f in sorted(log["written"]) if (work / f).is_file()}
     correct = result["hidden_failed"] == 0 and result["regression_failed"] == 0 and result["hidden_passed"] > 0
     return {
@@ -286,8 +319,9 @@ class ReferenceAgent:
     def __call__(self, system: str, turns: list[str], task_dir: Path, cond: str) -> Reply:
         if len(turns) == 1:
             ref = task_dir / "reference"
-            self.queue = [f"WRITE {f.relative_to(ref).as_posix()}\n```python\n{f.read_text(encoding='utf-8')}```"
-                          for f in sorted(ref.rglob("*")) if f.is_file()] + ["DONE"]
+            files = [for_condition(f.relative_to(ref), f.read_text(encoding="utf-8"), cond)
+                     for f in sorted(ref.rglob("*")) if f.is_file()]
+            self.queue = [f"WRITE {rel.as_posix()}\n```python\n{text}```" for rel, text in files] + ["DONE"]
         return Reply(self.queue.pop(0))
 
 
