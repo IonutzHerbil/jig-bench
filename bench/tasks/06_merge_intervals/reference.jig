@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def merge_intervals(intervals: list[list[int]]) -> Result[list[list[int]], str]:
     """Merge overlapping or touching closed intervals, sorted by start."""

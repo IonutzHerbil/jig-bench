@@ -1,7 +1,6 @@
 module clinic.directory
 
 from clinic.types import ClinicError, Doctor, DoctorId, Minute, Patient, PatientId, Specialty
-from std.result import Err, Ok, Result
 
 DOCTORS: dict[DoctorId, Doctor] = {
     DoctorId("dr_lee"): Doctor(id=DoctorId("dr_lee"), name="Lee", specialty=Specialty.GENERAL, opens=Minute(540), closes=Minute(720)),

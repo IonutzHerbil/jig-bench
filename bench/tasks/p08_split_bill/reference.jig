@@ -1,6 +1,5 @@
 module store.billing
 
-from std.result import Err, Ok, Result
 from store.orders import ANNA, order_total
 from store.types import Customer, Line, Money, Sku, StoreError
 

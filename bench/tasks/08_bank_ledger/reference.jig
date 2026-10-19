@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def parse_amount(text: str) -> Result[int, str]:
     """A positive integer amount."""

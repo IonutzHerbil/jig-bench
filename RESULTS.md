@@ -98,3 +98,29 @@ error type leaking out (1). The other 2 were spec misreadings.
 - Partial context after the type-flow checks (a re-run is pending), an ablation that switches the "lists what exists" feedback off.
 - Other model families, larger projects, multi-file features (`jig do`).
 - Sample sizes are small (3 per task); differences under ~10 points are within noise.
+
+## Is Jig easy to predict? (2026-10-19, gemini-flash-lite)
+
+A model writes one token at a time, so a construct it cannot predict is a construct it gets wrong or leaves out.
+`python -m bench.syntax predict` showed the model every reference solution up to a line and asked for the next
+line: 622 lines of Jig and 294 of Python, scored by shape (names and values masked).
+
+| Kind of line | Lines | Shape right |
+| --- | --- | --- |
+| Plain Python, in Python files | 294 | 39% |
+| Plain Python, in Jig files | 287 | 38% |
+| `Result` / `Ok` / `Err` | 117 | 63% |
+| `?` | 26 | 38% |
+| Examples | 80 | 28% |
+| `effects:` / `examples:` clauses | 63 | 19% |
+| `from std.result import ...` | 22 | 0% |
+
+Errors in runs with the current toolchain (`python -m bench.syntax mistakes`, 156 errors over 117 samples):
+70% were names and imports (guessing what exists), 11% fields, methods and arguments, 8% examples, 4% `Result`,
+and about 1% each `?`, clauses and match.
+
+What it changed: Jig code is no harder to predict than Python, and its error handling is the most predictable part
+of a file. The `std.result` import line was never predicted, so `Result`, `Ok`, `Err`, `Option`, `Some` and
+`Nothing` became built in (jig-lang 0.3). Optional clauses are a fork models skip after a docstring: they are
+rarely written unless something asks for them. The biggest lever stays the names: put what exists in front of the
+model.

@@ -4,7 +4,6 @@ from clinic.directory import MAX_LENGTH, MIN_LENGTH, find_doctor
 from clinic.schedule import clock, overlaps
 from clinic.types import ClinicError, DoctorId, Minute
 from lib.calendar import bookings_for
-from std.result import Err, Ok, Result
 
 
 def free_slots(doctor: DoctorId, length: int) -> Result[list[str], ClinicError]:

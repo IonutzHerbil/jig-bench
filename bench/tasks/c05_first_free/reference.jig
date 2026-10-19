@@ -4,7 +4,6 @@ from clinic.directory import DOCTORS, MAX_LENGTH, MIN_LENGTH
 from clinic.schedule import clock, overlaps
 from clinic.types import ClinicError, Minute, Specialty
 from lib.calendar import bookings_for
-from std.result import Err, Ok, Result
 
 
 def first_free(specialty: Specialty, length: int) -> Result[str, ClinicError]:

@@ -1,6 +1,5 @@
 module store.reservations
 
-from std.result import Err, Ok, Result
 from store.catalog import find_product
 from store.types import Line, Sku, StoreError
 

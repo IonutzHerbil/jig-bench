@@ -1,6 +1,5 @@
 module store.orders
 
-from std.result import Err, Ok, Result
 from store.catalog import find_product
 from store.pricing import percent_of, tax_rate, tier_discount
 from store.types import Customer, CustomerId, Line, Money, Region, Sku, StoreError, Tier

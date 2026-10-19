@@ -1,6 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
 
 enum Light:
     RED

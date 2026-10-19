@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def apply_discount(total_cents: int, code: str, day: int) -> Result[int, str]:
     """Apply SAVE10, FIXED500 or HALF to a cart total in cents, never going below zero."""

@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def parse_edge(text: str) -> Result[tuple[str, str, int], str]:
     """Split 'a-b:3' into its two nodes and weight."""

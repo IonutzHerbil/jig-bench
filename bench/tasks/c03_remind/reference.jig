@@ -4,7 +4,6 @@ from clinic.directory import find_doctor, find_patient
 from clinic.schedule import clock
 from clinic.types import ClinicError, DoctorId, Minute, PatientId
 from lib.sms import send
-from std.result import Err, Ok, Result
 
 
 def remind(doctor: DoctorId, patient: PatientId, start: Minute) -> Result[str, ClinicError]:

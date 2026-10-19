@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def parse_duration(text: str) -> Result[int, str]:
     """Parse 'XhYmZs' (each unit optional, at most once, in this order) into seconds."""

@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def is_integer(tok: str) -> bool:
     """True if tok is an optionally negative run of digits."""

@@ -3,7 +3,6 @@ module clinic.reports
 from clinic.directory import DOCTORS
 from clinic.types import ClinicError, DoctorId, Specialty
 from lib.calendar import bookings_for
-from std.result import Err, Ok, Result
 
 
 def booked_minutes(specialty: Specialty) -> Result[dict[DoctorId, int], ClinicError]:

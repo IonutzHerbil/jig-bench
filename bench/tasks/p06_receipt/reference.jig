@@ -1,6 +1,5 @@
 module store.receipts
 
-from std.result import Err, Ok, Result
 from store.catalog import find_product
 from store.orders import ANNA, line_total, order_total
 from store.types import Customer, Line, Money, Sku, StoreError

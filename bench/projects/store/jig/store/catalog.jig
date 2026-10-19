@@ -1,6 +1,5 @@
 module store.catalog
 
-from std.result import Err, Ok, Result
 from store.types import Money, Product, Sku, StoreError
 
 CATALOG: dict[Sku, Product] = {

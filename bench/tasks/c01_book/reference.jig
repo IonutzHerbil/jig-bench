@@ -3,7 +3,6 @@ module clinic.booking
 from clinic.directory import MAX_LENGTH, MIN_LENGTH, find_doctor, find_patient
 from clinic.types import ClinicError, DoctorId, Minute, PatientId
 from lib.calendar import CalendarError, SlotRef, reserve
-from std.result import Err, Ok, Result
 
 
 def book(doctor: DoctorId, patient: PatientId, start: Minute, length: int) -> Result[SlotRef, ClinicError]:

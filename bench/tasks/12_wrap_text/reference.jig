@@ -1,7 +1,5 @@
 module solution
 
-from std.result import Err, Ok, Result
-
 
 def wrap_text(text: str, width: int) -> Result[list[str], str]:
     """Greedily wrap words into lines of at most width characters."""
