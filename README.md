@@ -47,6 +47,20 @@ python -m bench.agent --model reference        # every reference fix must delive
 Scenarios live in `bench/se_tasks/<id>/`: the request, an optional `start/` overlay (a planted bug, an upgraded
 library), hidden tests, and a `reference/` fix.
 
+## Is Jig easy to predict? (`syntax.py`)
+
+A model writes one token at a time, so a language is easy for models when each next line is the obvious one.
+
+```bash
+python -m bench.syntax mistakes          # free: every error in past runs, by what it was about
+python -m bench.syntax predict --model gemini-flash-lite-latest   # next-line prediction on every reference solution
+python -m bench.syntax report bench/results/<file>.jsonl
+```
+
+`predict` shows the model each reference solution, in Jig and in Python, up to a line and asks for the next one;
+a line is scored exactly and by shape (names and values masked). In Jig files, plain Python lines are the baseline
+for each of Jig's own constructs.
+
 ## Reading results
 
 | Command | Gives |
