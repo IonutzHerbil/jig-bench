@@ -26,7 +26,9 @@ python -m bench.run --model reference          # no model: every reference solut
 | --- | --- |
 | `--conditions` | `python` (writes its own pytest tests), `python-plain` (no checks), `jig` (full manual), `jig-short` (short manual), `jig-probe`, `jig-learned` |
 | `--tasks` | id prefixes: `0`/`1` standalone functions, `p` store app, `c` clinic app |
+| `--request stub` | besides the prose request, the developer's stub: the signature with two examples (`examples:` in Jig, a `test_examples` pytest function in Python), inputs apart from the hidden tests; `kept_stub` records whether the model kept them |
 | `--context partial` | app tasks show only the types module and the names of other modules |
+| `--context interfaces` | app tasks show the types module and every other module without bodies (`jig interface` for Jig, stubs for Python) |
 | `--resume <file>` | continue an interrupted run |
 
 Tasks live in `bench/tasks/<id>/` (request, signatures, hidden tests, reference solutions in both languages); the
@@ -52,7 +54,7 @@ library), hidden tests, and a `reference/` fix.
 A model writes one token at a time, so a language is easy for models when each next line is the obvious one.
 
 ```bash
-python -m bench.syntax mistakes          # free: every error in past runs, by what it was about
+python -m bench.syntax mistakes          # free: every error in past runs, by what it was about, per context setting
 python -m bench.syntax predict --model gemini-flash-lite-latest   # next-line prediction on every reference solution
 python -m bench.syntax report bench/results/<file>.jsonl
 ```

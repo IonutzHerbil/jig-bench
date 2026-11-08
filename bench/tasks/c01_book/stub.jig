@@ -1,0 +1,6 @@
+def book(doctor: DoctorId, patient: PatientId, start: Minute, length: int) -> Result[SlotRef, ClinicError]:
+    """Add booking: book a patient with a doctor at a start time for a length in minutes, and return the calendar's slot reference."""
+    examples:
+        book(DoctorId("dr_khan"), PatientId("p_ann"), Minute(600), 30) -> Ok(SlotRef("dr_khan@600"))
+        book(DoctorId("dr_lee"), PatientId("p_ann"), Minute(540), 30) -> Err(ClinicError.SLOT_TAKEN)
+    ...

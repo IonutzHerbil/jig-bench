@@ -35,6 +35,7 @@ import jig
 from jig.cli import check_project, edge_probes, feedback_for_model
 from jig.autoimport import fix_imports
 from jig.fixer import fix_source
+from jig.interface import render_interface
 from jig.transpiler import build
 
 from .model import make_model
@@ -68,6 +69,14 @@ REVIEW = (
     "Compare each result with the request. If every one is what the request asks for, reply with just OK. "
     "Otherwise reply with the complete corrected file."
 )
+
+EXT = {"jig": "jig", "python": "py"}
+# --request stub: besides the prose request, the developer hands over the function's header with examples.
+STUB = {
+    "jig": "\nThe developer wrote this stub. Keep its signature and examples, and write the body:\n```jig\n{stub}```\n",
+    "python": "\nThe developer wrote this stub. Keep its signature and test_examples, and write the body:\n"
+              "```python\n{stub}```\n",
+}
 
 ERROR_STYLE = {
     "jig": "Represent failure by returning Err(<message str>).",
@@ -138,31 +147,42 @@ def py_stub(source: str) -> str:
     return ast.unparse(tree) + "\n"
 
 
-def project_context(name: str, lang: str, partial: bool = False) -> str:
+def project_context(name: str, lang: str, view: str = "full") -> str:
     """The project files a developer (or model) would have open, as one prompt section.
 
-    partial: like an agent in a codebase too big for its context, the model sees only the shared types
-    module plus the names of the other modules and libraries; the same for both languages.
+    full: every file. partial: like an agent in a codebase too big for its context, the model sees only the shared
+    types module plus the names of the other modules and libraries. interfaces: the same agent with the language's
+    own tooling: the types module, and every other module without its bodies (`jig interface` for Jig, stubs for
+    Python). Each view is the same for both languages.
     """
     base = ROOT / "projects" / name / lang
-    if partial:
-        ext = "jig" if lang == "jig" else "py"
-        types = next(base.glob(f"*/types.{ext}"))
-        others = sorted(
-            f.relative_to(base).with_suffix("").as_posix().replace("/", ".")
-            for f in [*base.rglob(f"*.{ext}"), *base.glob("lib/*.manifest")]
-            if f != types
-        )
+    ext = "jig" if lang == "jig" else "py"
+    code = sorted(base.rglob(f"*.{ext}")) + sorted(base.glob("lib/*.manifest"))
+    # Jig examples run libraries through their fakes, so the model sees the fakes' data, as Python's library stubs
+    # show their module data.
+    if lang == "jig":
+        files = code + sorted(base.glob("lib/*.fake.py")) + sorted(base.glob(".decisions/*"))
+    else:
+        files = code + [base / "DECISIONS.md"]
+    types = next(base.glob(f"*/types.{ext}"))
+    if view == "partial":
+        others = sorted(f.relative_to(base).with_suffix("").as_posix().replace("/", ".") for f in code if f != types)
         return (f"### {types.relative_to(base).as_posix()}\n{types.read_text(encoding='utf-8')}\n\n"
                 f"Other modules and libraries in the project (not shown): {', '.join(dict.fromkeys(others))}")
-    if lang == "jig":
-        files = sorted(base.rglob("*.jig")) + sorted(base.glob("lib/*.manifest")) + sorted(base.glob(".decisions/*"))
-        shown = {f: f.read_text(encoding="utf-8") for f in files}
-    else:
-        files = sorted(base.rglob("*.py")) + [base / "DECISIONS.md"]
-        shown = {f: py_stub(f.read_text(encoding="utf-8")) if "lib" in f.parts else f.read_text(encoding="utf-8")
-                 for f in files}
-    return "\n\n".join(f"### {f.relative_to(base).as_posix()}\n{text}" for f, text in shown.items())
+    interfaces = {}
+    if view == "interfaces" and lang == "jig":
+        project, _ = check_project([str(base)], run_ex=False)
+        interfaces = {Path(m.file).resolve(): render_interface(m, project) for m in project.modules.values()}
+
+    def shown(f: Path) -> str:
+        text = f.read_text(encoding="utf-8")
+        if view == "interfaces" and f != types and f.suffix == ".jig":
+            return interfaces[f.resolve()]
+        if f.suffix == ".py" and ("lib" in f.parts or view == "interfaces" and f != types):
+            return py_stub(text)  # libraries are always seen through their stubs
+        return text
+
+    return "\n\n".join(f"### {f.relative_to(base).as_posix()}\n{shown(f)}" for f in files)
 
 
 def check(lang: str, code: str, work: Path, module: str, tests: bool = True) -> tuple[bool, list[str], str, Path]:
@@ -235,17 +255,20 @@ def same(actual, expect) -> bool:
     return actual == expect
 
 
-def run_sample(model, task_dir: Path, task: dict, cond: str, rounds: int, partial: bool = False) -> dict:
+def run_sample(model, task_dir: Path, task: dict, cond: str, rounds: int, view: str = "full",
+               stub: bool = False) -> dict:
     lang = cond.split("-")[0]
     cases = json.loads((task_dir / "tests.json").read_text(encoding="utf-8"))
     module = task.get("module", "solution")
     project = task.get("project")
     prompt = f"{task['request']}\n\nWrite the module `{module}`. Expose exactly this function:\n    {task['signature'][lang]}\n"
+    if stub and (task_dir / f"stub.{EXT[lang]}").exists():
+        prompt += STUB[lang].format(stub=(task_dir / f"stub.{EXT[lang]}").read_text(encoding="utf-8"))
     # Only standalone tasks with failure cases say how to fail; project tasks fail the project's way.
     if not project and any(c["expect"] == "error" for c in cases):
         prompt += ERROR_STYLE[lang] + "\n"
     if project:
-        prompt = f"You are adding a module to this existing project:\n\n{project_context(project, lang, partial)}\n\n{prompt}"
+        prompt = f"You are adding a module to this existing project:\n\n{project_context(project, lang, view)}\n\n{prompt}"
     if lang == "jig":
         system = ("You write Jig, a Python-shaped language checked by a strict compiler. Its reference follows.\n\n"
                   + MANUALS[cond] + (("\n\n" + PROJECT_MANUAL) if project and cond == "jig-short" else "")
@@ -293,6 +316,10 @@ def run_sample(model, task_dir: Path, task: dict, cond: str, rounds: int, partia
         hidden_total=len(cases),
         hallucinations=sum(c in HALLUCINATION[lang] for codes in record["rounds"] for c in codes),
     )
+    if stub and (task_dir / f"stub.{EXT[lang]}").exists() and record["code"]:
+        # Whether the delivered file still holds every example the developer wrote: dropping one is not allowed.
+        calls = re.findall(rf"\b{task['entry']}\(.*\)", (task_dir / f"stub.{EXT[lang]}").read_text(encoding="utf-8"))
+        record["kept_stub"] = all(c in record["code"][-1] for c in calls[1:])  # [0] is the def line
     return record
 
 
@@ -306,8 +333,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--rpm", type=int, default=8, help="requests per minute (free tier is about 10)")
     ap.add_argument("--resume", help="a results file from an interrupted run: skip its samples, append the rest")
-    ap.add_argument("--context", choices=("full", "partial"), default="full",
-                    help="project tasks: show every file (full), or only the types module and module names (partial)")
+    ap.add_argument("--request", choices=("prose", "stub"), default="prose",
+                    help="the request in prose only, or also the developer's stub with examples (tasks/<id>/stub.*)")
+    ap.add_argument("--context", choices=("full", "partial", "interfaces"), default="full",
+                    help="project tasks: show every file (full), only the types module and module names (partial), "
+                         "or the types module and every other module without bodies (interfaces)")
     args = ap.parse_args(argv)
 
     model = make_model(args.model, args.temperature, args.rpm)
@@ -327,11 +357,13 @@ def main(argv: list[str] | None = None) -> int:
             task = json.loads((task_dir / "task.json").read_text(encoding="utf-8"))
             for cond in args.conditions.split(","):
                 for k in range(args.samples):
-                    if (task_dir.name, cond + ("@partial" if args.context == "partial" else ""), k) in done:
+                    label = cond + ("+stub" if args.request == "stub" else "") + (
+                        "" if args.context == "full" else "@" + args.context)
+                    if (task_dir.name, label, k) in done:
                         continue
                     t0 = time.monotonic()
-                    rec = run_sample(model, task_dir, task, cond, args.rounds, partial=args.context == "partial")
-                    label = cond + ("@partial" if args.context == "partial" else "")
+                    rec = run_sample(model, task_dir, task, cond, args.rounds, view=args.context,
+                                     stub=args.request == "stub")
                     rec.update(task=task_dir.name, domain=task["domain"], cond=label, sample=k,
                                model=args.model, temperature=args.temperature, seconds=round(time.monotonic() - t0, 1))
                     f.write(json.dumps(rec) + "\n")

@@ -1,0 +1,6 @@
+def bank_ledger(ops: list[str]) -> Result[dict[str, int], str]:
+    """Process bank ledger operations in order and return the final balance of every opened account."""
+    examples:
+        bank_ledger(["open x", "deposit x 10"]) -> Ok({"x": 10})
+        bank_ledger(["withdraw x 1"]) -> Err
+    ...

@@ -1,0 +1,6 @@
+def split_bill(customer: Customer, lines: list[Line], people: int) -> Result[list[Money], StoreError]:
+    """Add bill splitting: split the order total between `people` as evenly as possible in whole cents, the first shares taking any extra cents, e.g."""
+    examples:
+        split_bill(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("bread"), quantity=2)], 2) -> Ok([Money(399), Money(399)])
+        split_bill(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("bread"), quantity=2)], -1) -> Err(StoreError.INVALID_QUANTITY)
+    ...

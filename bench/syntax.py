@@ -112,6 +112,8 @@ def subject(code: str, message: str, source: str) -> str:
         return "contract clause"  # effects
     if code.startswith("C"):
         return "example line" if code in ("C001", "C002", "C003", "C005") else "contract clause"
+    if code == "S001" and source.lstrip().startswith(("def ", "async def ")):
+        return "function header"  # a header mentioning Result is still a header
     if code == "S001" and source:
         return kinds([source], jig=True)[0] if not source.startswith(" ") else _kind_in_body(source)
     return code
@@ -127,9 +129,11 @@ def _kind_in_body(source: str) -> str:
 
 def mistakes(files: list[Path]) -> None:
     """Every error the checker reported to a model writing Jig, by what it was about, in runs with the current
-    toolchain: which constructs models get wrong, and what share of all their mistakes each causes."""
-    errors: collections.Counter = collections.Counter()
-    samples = 0
+    toolchain: which constructs models get wrong, and what share of all their mistakes each causes. Each context
+    setting (what the model saw of the project: full, partial, interfaces) is its own table, since a model that is
+    not shown a module's names has to guess them."""
+    errors: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    samples: collections.Counter = collections.Counter()
     for f in files:
         if f.name[:8] < FIRST_CURRENT_RUN:
             continue
@@ -137,16 +141,19 @@ def mistakes(files: list[Path]) -> None:
             r = json.loads(line) if line.strip() else {}
             if not str(r.get("cond", "")).startswith("jig"):
                 continue
-            samples += 1
+            setting = r["cond"].partition("@")[2] or "full"
+            samples[setting] += 1
             for feedback in r.get("feedback") or []:
                 for code, message, source in ERROR_RE.findall(feedback + "\n"):
                     if code[0] in "SRTECFDM":
-                        errors[subject(code, message, source)] += 1
-    total = sum(errors.values())
-    print(f"{total} errors over {samples} samples writing Jig (runs from {FIRST_CURRENT_RUN} on)\n")
-    print(f"{'what the error was about':30} {'errors':>7} {'share':>7}")
-    for kind, n in errors.most_common():
-        print(f"{kind:30} {n:7} {n / max(total, 1):7.1%}")
+                        errors[setting][subject(code, message, source)] += 1
+    for setting, counts in sorted(errors.items()):
+        total = sum(counts.values())
+        print(f"\n{setting} context: {total} errors over {samples[setting]} samples writing Jig "
+              f"(runs from {FIRST_CURRENT_RUN} on)\n")
+        print(f"{'what the error was about':30} {'errors':>7} {'share':>7} {'per sample':>11}")
+        for kind, n in counts.most_common():
+            print(f"{kind:30} {n:7} {n / max(total, 1):7.1%} {n / samples[setting]:11.2f}")
 
 
 # ---------------------------------------------------------------- next-line prediction

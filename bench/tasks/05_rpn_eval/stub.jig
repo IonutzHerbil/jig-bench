@@ -1,0 +1,6 @@
+def rpn_eval(expr: str) -> Result[int, str]:
+    """Evaluate an integer expression in Reverse Polish Notation."""
+    examples:
+        rpn_eval("2 3 *") -> Ok(6)
+        rpn_eval("4 0 /") -> Err
+    ...

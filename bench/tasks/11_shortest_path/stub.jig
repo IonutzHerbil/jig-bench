@@ -1,0 +1,6 @@
+def shortest_path(edges: list[str], start: str, goal: str) -> Result[int, str]:
+    """Find the total weight of the shortest path between two nodes of an undirected weighted graph."""
+    examples:
+        shortest_path(["p-q:3"], "p", "q") -> Ok(3)
+        shortest_path(["p-q:3"], "p", "r") -> Err
+    ...

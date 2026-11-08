@@ -1,0 +1,6 @@
+def remind(doctor: DoctorId, patient: PatientId, start: Minute) -> Result[str, ClinicError]:
+    """Add reminders: text a patient a reminder of an appointment through the SMS service, worded exactly 'Hi <patient name>, your appointment with Dr <doctor name> is at <HH:MM>.', and return the message id."""
+    examples:
+        remind(DoctorId("dr_khan"), PatientId("p_ann"), Minute(660)) -> Ok("msg:+441234:Hi Ann, your appointment with Dr Khan is at 11:00.")
+        remind(DoctorId("dr_who"), PatientId("p_ann"), Minute(660)) -> Err(ClinicError.UNKNOWN_DOCTOR)
+    ...

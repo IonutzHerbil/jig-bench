@@ -1,0 +1,6 @@
+def checkout(customer: Customer, lines: list[Line]) -> Result[ChargeId, StoreError]:
+    """Add checkout: charge the customer for their order total through the payments library, using the customer's id as the payments customer."""
+    examples:
+        checkout(Customer(id=CustomerId("zoe"), tier=Tier.STANDARD, region=Region.US), [Line(sku=Sku("apple"), quantity=2)]) -> Ok(ChargeId("ch_zoe_256"))
+        checkout(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("cheese"), quantity=100)]) -> Err(StoreError.OUT_OF_STOCK)
+    ...

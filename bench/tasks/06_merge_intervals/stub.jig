@@ -1,0 +1,6 @@
+def merge_intervals(intervals: list[list[int]]) -> Result[list[list[int]], str]:
+    """Given closed integer intervals [start, end], merge every pair that overlaps or shares an endpoint and return the result sorted by start."""
+    examples:
+        merge_intervals([[1, 2], [2, 3]]) -> Ok([[1, 3]])
+        merge_intervals([[5, 1]]) -> Err
+    ...

@@ -1,0 +1,6 @@
+def roman_to_int(s: str) -> Result[int, str]:
+    """Convert a Roman numeral written with I V X L C D M in standard subtractive notation (IV, IX, XL, XC, CD, CM) to an integer."""
+    examples:
+        roman_to_int("XL") -> Ok(40)
+        roman_to_int("IIZ") -> Err
+    ...

@@ -1,0 +1,6 @@
+def free_slots(doctor: DoctorId, length: int) -> Result[list[str], ClinicError]:
+    """Add availability: list the start times, written HH:MM, at which a booking of `length` minutes could be made with a doctor: every quarter hour from the doctor's opening time, keeping only starts where the whole booking ends by closing time and does not overlap any existing calendar booking."""
+    examples:
+        free_slots(DoctorId("dr_khan"), 30) -> Ok(["10:00", "10:15", "10:30"])
+        free_slots(DoctorId("dr_lee"), 200) -> Err(ClinicError.TOO_LONG)
+    ...

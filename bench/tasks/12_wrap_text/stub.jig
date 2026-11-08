@@ -1,0 +1,6 @@
+def wrap_text(text: str, width: int) -> Result[list[str], str]:
+    """Greedy word wrap: split the text on whitespace into words and fill lines left to right, joining words with one space and never exceeding `width` characters per line."""
+    examples:
+        wrap_text("one two three", 7) -> Ok(["one two", "three"])
+        wrap_text("x", -1) -> Err
+    ...

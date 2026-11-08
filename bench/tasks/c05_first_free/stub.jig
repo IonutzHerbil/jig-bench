@@ -1,0 +1,6 @@
+def first_free(specialty: Specialty, length: int) -> Result[str, ClinicError]:
+    """Add matching: find the earliest time any doctor of a specialty can take a booking of `length` minutes (quarter-hour starts from opening time, ending by closing time, not overlapping existing calendar bookings)."""
+    examples:
+        first_free(Specialty.DENTAL, 30) -> Err(ClinicError.NOT_FOUND)
+        first_free(Specialty.GENERAL, 200) -> Err(ClinicError.TOO_LONG)
+    ...

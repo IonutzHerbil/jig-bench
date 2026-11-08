@@ -1,0 +1,6 @@
+def traffic_light(events: list[str]) -> Result[str, str]:
+    """Simulate a traffic light that starts red, given a list of events."""
+    examples:
+        traffic_light(["timer", "timer"]) -> Ok("yellow")
+        traffic_light(["fly"]) -> Err
+    ...

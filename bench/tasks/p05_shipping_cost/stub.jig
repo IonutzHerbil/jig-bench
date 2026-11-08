@@ -1,0 +1,6 @@
+def shipping_cost(customer: Customer, lines: list[Line]) -> Result[Money, StoreError]:
+    """Add shipping costs: shipping is free when the order total is at least 5000 cents; otherwise it costs 499 cents in the EU, 599 in the UK and 799 in the US."""
+    examples:
+        shipping_cost(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("apple"), quantity=1)]) -> Ok(Money(499))
+        shipping_cost(Customer(id=CustomerId("zoe"), tier=Tier.STANDARD, region=Region.US), []) -> Err(StoreError.EMPTY_CART)
+    ...

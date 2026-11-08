@@ -1,0 +1,6 @@
+def reserve(lines: list[Line]) -> Result[dict[Sku, int], StoreError]:
+    """Add stock reservation: check that the catalog can supply all the lines together (lines for the same SKU add up) and return the stock left for each SKU in the cart."""
+    examples:
+        reserve([Line(sku=Sku("apple"), quantity=1)]) -> Ok({Sku("apple"): 49})
+        reserve([Line(sku=Sku("bread"), quantity=11)]) -> Err(StoreError.OUT_OF_STOCK)
+    ...

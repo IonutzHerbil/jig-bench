@@ -1,0 +1,6 @@
+def apply_discount(total_cents: int, code: str, day: int) -> Result[int, str]:
+    """Apply a discount code to a cart total in cents on a given day number."""
+    examples:
+        apply_discount(5000, "HALF", 3) -> Ok(2500)
+        apply_discount(100, "NOPE", 1) -> Err
+    ...

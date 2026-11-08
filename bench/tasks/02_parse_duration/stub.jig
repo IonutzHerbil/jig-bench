@@ -1,0 +1,6 @@
+def parse_duration(text: str) -> Result[int, str]:
+    """Parse a duration such as '1h30m', '45s' or '2h5s' into a number of seconds."""
+    examples:
+        parse_duration("2m30s") -> Ok(150)
+        parse_duration("3x") -> Err
+    ...

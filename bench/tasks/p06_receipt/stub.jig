@@ -1,0 +1,6 @@
+def receipt(customer: Customer, lines: list[Line]) -> Result[list[str], StoreError]:
+    """Add receipts: one text line per cart line, '<product name> x<quantity> <line total>', followed by 'TOTAL <order total>'."""
+    examples:
+        receipt(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("cheese"), quantity=1)]) -> Ok(["Cheese x1 12.99", "TOTAL 14.82"])
+        receipt(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("caviar"), quantity=1)]) -> Err(StoreError.UNKNOWN_SKU)
+    ...

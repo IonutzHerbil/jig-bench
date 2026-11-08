@@ -1,0 +1,6 @@
+def refund_order(charge: ChargeId, customer: Customer, lines: list[Line]) -> Result[Money, StoreError]:
+    """Add refunds: refund the full order total of the given lines against an existing charge through the payments library, and return the refunded amount as Money."""
+    examples:
+        refund_order(ChargeId("ch_anna_2000"), Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("apple"), quantity=1)]) -> Ok(Money(136))
+        refund_order(ChargeId("bogus"), Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("bread"), quantity=1)]) -> Err(StoreError.REFUND_FAILED)
+    ...

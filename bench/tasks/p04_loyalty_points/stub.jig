@@ -1,0 +1,6 @@
+def loyalty_points(customer: Customer, lines: list[Line]) -> Result[int, StoreError]:
+    """Add loyalty points: a customer earns one point per full 100 cents of their order total; PLATINUM customers earn double."""
+    examples:
+        loyalty_points(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("apple"), quantity=3)]) -> Ok(4)
+        loyalty_points(Customer(id=CustomerId("anna"), tier=Tier.GOLD, region=Region.EU), [Line(sku=Sku("bread"), quantity=-1)]) -> Err(StoreError.INVALID_QUANTITY)
+    ...

@@ -1,0 +1,6 @@
+def csv_column_sum(csv: str, column: str) -> Result[int, str]:
+    """Sum one integer column of a simple CSV text: the first line is the header, fields are separated by commas with no quoting, and blank lines are ignored."""
+    examples:
+        csv_column_sum("a,b\n1,2\n3,4", "a") -> Ok(4)
+        csv_column_sum("a\n1", "b") -> Err
+    ...
